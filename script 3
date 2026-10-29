@@ -1,0 +1,197 @@
+script.js
+
+const games = [
+  {
+    id: "gta5",
+    name: "GTA V",
+    genre: "Open World",
+    icon: "🚘",
+    color: "linear-gradient(135deg, #183c32, #101820)",
+    description: "Открытый мир, автомобили и большие приключения."
+  },
+  {
+    id: "minecraft",
+    name: "Minecraft",
+    genre: "Sandbox",
+    icon: "⛏️",
+    color: "linear-gradient(135deg, #345d36, #172d20)",
+    description: "Строй, исследуй и создавай собственный мир."
+  },
+  {
+    id: "cs2",
+    name: "Counter-Strike 2",
+    genre: "Shooter",
+    icon: "🎯",
+    color: "linear-gradient(135deg, #61482b, #211a15)",
+    description: "Командные сражения и тактический геймплей."
+  },
+  {
+    id: "rdr2",
+    name: "Red Dead Redemption 2",
+    genre: "Adventure",
+    icon: "🤠",
+    color: "linear-gradient(135deg, #702f28, #241516)",
+    description: "Приключения на Диком Западе."
+  }
+];
+
+const grid = document.querySelector("#gameGrid");
+const searchInput = document.querySelector("#searchInput");
+const favoritesBtn = document.querySelector("#favoritesBtn");
+const themeBtn = document.querySelector("#themeBtn");
+const emptyMessage = document.querySelector("#emptyMessage");
+const gameCount = document.querySelector("#gameCount");
+
+let favorites = new Set();
+
+try {
+  const saved = JSON.parse(
+    localStorage.getItem("ghost-favorites") || "[]"
+  );
+
+  if (Array.isArray(saved)) {
+    favorites = new Set(
+      saved.filter(id => games.some(game => game.id === id))
+    );
+  }
+} catch {
+  favorites = new Set();
+}
+
+let showFavorites = false;
+
+function saveFavorites() {
+  try {
+    localStorage.setItem(
+      "ghost-favorites",
+      JSON.stringify([...favorites])
+    );
+  } catch {
+    // Сайт продолжит работать, даже если сохранение недоступно.
+  }
+}
+
+function renderGames() {
+  const query = searchInput.value.trim().toLowerCase();
+
+  const filtered = games.filter(game => {
+    const matchesSearch =
+      game.name.toLowerCase().includes(query) ||
+      game.genre.toLowerCase().includes(query);
+
+    const matchesFavorites =
+      !showFavorites || favorites.has(game.id);
+
+    return matchesSearch && matchesFavorites;
+  });
+
+  grid.replaceChildren();
+
+  filtered.forEach(game => {
+    const card = document.createElement("article");
+    card.className = "game-card";
+
+    const art = document.createElement("div");
+    art.className = "game-art";
+    art.style.setProperty("--art", game.color);
+    art.textContent = game.icon;
+    art.setAttribute("aria-hidden", "true");
+
+    const info = document.createElement("div");
+    info.className = "game-info";
+
+    const title = document.createElement("h3");
+    title.textContent = game.name;
+
+    const description = document.createElement("p");
+    description.textContent = game.description;
+
+    const bottom = document.createElement("div");
+    bottom.className = "card-bottom";
+
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = game.genre;
+
+    const favoriteBtn = document.createElement("button");
+    favoriteBtn.className = "favorite-btn";
+    favoriteBtn.classList.toggle(
+      "active",
+      favorites.has(game.id)
+    );
+    favoriteBtn.textContent = favorites.has(game.id)
+      ? "⭐ В избранном"
+      : "☆ В избранное";
+    favoriteBtn.setAttribute(
+      "aria-pressed",
+      String(favorites.has(game.id))
+    );
+
+    favoriteBtn.addEventListener("click", () => {
+      if (favorites.has(game.id)) {
+        favorites.delete(game.id);
+      } else {
+        favorites.add(game.id);
+      }
+
+      saveFavorites();
+      renderGames();
+    });
+
+    bottom.append(tag, favoriteBtn);
+    info.append(title, description, bottom);
+    card.append(art, info);
+    grid.append(card);
+  });
+
+  gameCount.textContent = `Показано: ${filtered.length}`;
+  emptyMessage.hidden = filtered.length !== 0;
+}
+
+searchInput.addEventListener("input", renderGames);
+
+favoritesBtn.addEventListener("click", () => {
+  showFavorites = !showFavorites;
+  favoritesBtn.classList.toggle("active", showFavorites);
+  favoritesBtn.setAttribute(
+    "aria-pressed",
+    String(showFavorites)
+  );
+  renderGames();
+});
+
+themeBtn.addEventListener("click", () => {
+  const isLight = document.body.classList.toggle("light");
+
+  themeBtn.textContent = isLight ? "🌙" : "☀️";
+  themeBtn.setAttribute(
+    "aria-label",
+    isLight ? "Включить тёмную тему" : "Включить светлую тему"
+  );
+
+  try {
+    localStorage.setItem(
+      "ghost-theme",
+      isLight ? "light" : "dark"
+    );
+  } catch {
+    // Переключение темы работает и без сохранения.
+  }
+});
+
+try {
+  const savedTheme = localStorage.getItem("ghost-theme");
+
+  if (savedTheme === "light") {
+    document.body.classList.add("light");
+    themeBtn.textContent = "🌙";
+    themeBtn.setAttribute("aria-label", "Включить тёмную тему");
+  }
+} catch {
+  // Используем тёмную тему по умолчанию.
+}
+
+document.querySelector("#year").textContent =
+  new Date().getFullYear();
+
+renderGames();
